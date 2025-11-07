@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-3">
+        <div class="card sidebar-card">
+            <div class="card-header">
+                <h5><i class="fas fa-bars"></i> Navigation</h5>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    <a href="{{ url_for('main_page') }}" class="btn btn-purple active">
+                        <i class="fas fa-home"></i> Main Page
+                    </a>
+                    <a href="{{ url_for('analysis_page') }}" class="btn btn-outline-purple">
+                        <i class="fas fa-chart-bar"></i> Analysis & Classification
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-9">
+        <div class="card main-card">
+            <div class="card-header">
+                <h4><i class="fas fa-x-ray"></i> Cervical Vertebrae Analysis</h4>
+                <p class="mb-0">Upload a cephalometric X-ray image to detect and segment vertebrae (C2–C4)</p>
+            </div>
+            <div class="card-body">
+                <div class="mb-4">
+                    <input type="file" id="fileInput" class="form-control" accept=".jpg,.jpeg,.png">
+                    <div class="mt-2">
+                        <button id="processBtn" class="btn btn-purple">
+                            <i class="fas fa-cogs"></i> Process Image
+                        </button>
+                        <button id="clearBtn" class="btn btn-outline-purple">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </div>
+
+                <div id="loading" class="text-center" style="display: none;">
+                    <div class="spinner-border text-purple" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="mt-2">Processing image...</p>
+                </div>
+
+                <div id="errorAlert" class="alert alert-danger" style="display: none;"></div>
+
+                <div id="results" style="display: none;">
+                    <h5>Processing Results</h5>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="card image-card">
+                                <div class="card-header">Original X-ray</div>
+                                <div class="card-body">
+                                    <img id="originalImage" class="img-fluid" src="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card image-card">
+                                <div class="card-header">Detected ROI</div>
+                                <div class="card-body">
+                                    <img id="roiImage" class="img-fluid" src="">
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="card image-card">
+                                <div class="card-header">Segmented Output</div>
+                                <div class="card-body">
+                                    <img id="segmentedImage" class="img-fluid" src="">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="text-center mt-4">
+                        <div class="alert alert-success">
+                            <i class="fas fa-check-circle"></i>
+                            <strong>Image processed successfully!</strong> 
+                            Click below to view detailed analysis with CVMI staging.
+                        </div>
+                        <a href="{{ url_for('analysis_page') }}" class="btn btn-success btn-lg">
+                            <i class="fas fa-chart-bar"></i> View Detailed Analysis
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('processBtn').addEventListener('click', function() {
+    const fileInput = document.getElementById('fileInput');
+    const file = fileInput.files[0];
+    
+    if (!file) {
+        showError('Please select an image file');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    showLoading(true);
+    hideError();
+
+    fetch('/process_image', {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        showLoading(false);
+        if (data.success) {
+            document.getElementById('originalImage').src = 'data:image/jpeg;base64,' + data.original_image;
+            document.getElementById('roiImage').src = 'data:image/jpeg;base64,' + data.roi_image;
+            document.getElementById('segmentedImage').src = 'data:image/jpeg;base64,' + data.segmented_image;
+            document.getElementById('results').style.display = 'block';
+        } else {
+            showError(data.error);
+        }
+    })
+    .catch(error => {
+        showLoading(false);
+        showError('An error occurred while processing the image');
+    });
+});
+
+document.getElementById('clearBtn').addEventListener('click', function() {
+    document.getElementById('fileInput').value = '';
+    document.getElementById('results').style.display = 'none';
+    hideError();
+});
+
+function showLoading(show) {
+    document.getElementById('loading').style.display = show ? 'block' : 'none';
+}
+
+function showError(message) {
+    const errorAlert = document.getElementById('errorAlert');
+    errorAlert.textContent = message;
+    errorAlert.style.display = 'block';
+}
+
+function hideError() {
+    document.getElementById('errorAlert').style.display = 'none';
+}
+</script>
+{% endblock %}
